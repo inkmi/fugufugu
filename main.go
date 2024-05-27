@@ -77,29 +77,38 @@ func processSQLFile(filePath string) (string, string, error) {
 	upStr := strings.TrimSpace(upPart.String())
 	downStr := strings.TrimSpace(downPart.String())
 
-	analyze(upStr)
-
-	return upStr, downStr, nil
-}
-
-func analyze(sql string) []DropChange {
-	result, err := pg.Parse(sql)
-	if err != nil {
-		panic(err)
-	}
-
-	var changes []DropChange
-
-	if result.Stmts[0].Stmt.GetDropStmt() != nil {
-		name := result.Stmts[0].Stmt.GetDropStmt().GetObjects()[0].GetList().Items[0].GetString_().Sval
-		changes = append(changes, DropChange{"table", name})
-	}
-
+	changes := analyze(upStr)
 	if len(changes) > 0 {
 		fmt.Println("Destructive changes:")
 	}
 	for _, c := range changes {
 		fmt.Printf(" drop %s\t%s\n", c.Name, c.Type)
+	}
+	return upStr, downStr, nil
+}
+
+func analyzeStmt(stmt *pg.Node) *DropChange {
+	if stmt.GetDropStmt() != nil {
+		name := stmt.GetDropStmt().GetObjects()[0].GetList().Items[0].GetString_().Sval
+		return &DropChange{
+			Type: "table",
+			Name: name,
+		}
+	}
+	return nil
+}
+
+func analyze(sql string) []*DropChange {
+	result, err := pg.Parse(sql)
+	if err != nil {
+		panic(err)
+	}
+
+	var changes []*DropChange
+	res := analyzeStmt(result.Stmts[0].Stmt)
+	if res != nil {
+		changes = append(changes, res)
+
 	}
 	return changes
 }
