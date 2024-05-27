@@ -19,13 +19,16 @@ builds:
     flags:
       - -trimpath
     id: fugufugu
-    binary: fugu
+    binary: fugufugu
     env:
-      - CGO_ENABLED=0
+      - CGO_ENABLED=1
     goos:
       - linux
-      - windows
-      - darwin
+      #- darwin
+    goarch:
+      - amd64
+      # - arm
+      # - arm64
 
 checksum:
   name_template: 'checksums.txt'
