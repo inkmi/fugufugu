@@ -4,17 +4,11 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	pg "github.com/pganalyze/pg_query_go/v5"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 )
-
-type DropChange struct {
-	Type string
-	Name string
-}
 
 func main() {
 	dir := flag.String("dir", "", "directory containing .sql files")
@@ -31,23 +25,31 @@ func main() {
 		return
 	}
 
+	var changes []*Warning
+	fmt.Println("Analyzing:")
 	for _, file := range files {
 		if filepath.Ext(file.Name()) == ".sql" {
 			filePath := filepath.Join(*dir, file.Name())
-			_, _, err := processSQLFile(filePath)
-			if err != nil {
-				fmt.Println("Error processing file:", file.Name(), err)
-				continue
+			fmt.Printf("  %s\n", file.Name())
+			fileChanges := processSQLFile(filePath)
+			if len(fileChanges) > 0 {
+				changes = append(changes, fileChanges...)
 			}
-			fmt.Printf("Analyzing: %s\n", file.Name())
 		}
+
+	}
+	if len(changes) > 0 {
+		fmt.Println("Destructive changes:")
+	}
+	for _, c := range changes {
+		fmt.Printf(" drop %s\t%s\n", c.Name, c.Object)
 	}
 }
 
-func processSQLFile(filePath string) (string, string, error) {
+func processSQLFile(filePath string) []*Warning {
 	file, err := os.Open(filePath)
 	if err != nil {
-		return "", "", err
+		return nil
 	}
 	defer file.Close()
 
@@ -71,44 +73,11 @@ func processSQLFile(filePath string) (string, string, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		return "", "", err
+		return nil
 	}
 
 	upStr := strings.TrimSpace(upPart.String())
-	downStr := strings.TrimSpace(downPart.String())
 
 	changes := analyze(upStr)
-	if len(changes) > 0 {
-		fmt.Println("Destructive changes:")
-	}
-	for _, c := range changes {
-		fmt.Printf(" drop %s\t%s\n", c.Name, c.Type)
-	}
-	return upStr, downStr, nil
-}
-
-func analyzeStmt(stmt *pg.Node) *DropChange {
-	if stmt.GetDropStmt() != nil {
-		name := stmt.GetDropStmt().GetObjects()[0].GetList().Items[0].GetString_().Sval
-		return &DropChange{
-			Type: "table",
-			Name: name,
-		}
-	}
-	return nil
-}
-
-func analyze(sql string) []*DropChange {
-	result, err := pg.Parse(sql)
-	if err != nil {
-		panic(err)
-	}
-
-	var changes []*DropChange
-	res := analyzeStmt(result.Stmts[0].Stmt)
-	if res != nil {
-		changes = append(changes, res)
-
-	}
 	return changes
 }
