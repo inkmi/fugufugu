@@ -1,0 +1,7 @@
+checkers:
+  - type: regex
+    pattern: "a.*"
+  - type: minimum-length
+    minLength: 3
+  - type: prefix
+    prefix: "t_"

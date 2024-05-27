@@ -1,6 +1,10 @@
 package main
 
-import pg "github.com/pganalyze/pg_query_go/v5"
+import (
+	"fmt"
+
+	pg "github.com/pganalyze/pg_query_go/v5"
+)
 
 type Warning struct {
 	Change string
@@ -9,11 +13,12 @@ type Warning struct {
 	Name   string
 }
 
-type Analyzer func(stmt *pg.Node) *Warning
+type Analyzer func(config *Config, stmt *pg.Node) *Warning
 
 func AllAnalyzers() []Analyzer {
 	return []Analyzer{
 		dropTableAnalyzer,
+		nameTableAnalyzer,
 	}
 
 }
@@ -27,7 +32,7 @@ func AllAnalyzers() []Analyzer {
 // - enforce name schema (table name, column name, ....)
 // - other downtime changes
 
-func analyze(sql string) []*Warning {
+func analyze(config *Config, sql string) []*Warning {
 	result, err := pg.Parse(sql)
 	if err != nil {
 		panic(err)
@@ -36,7 +41,7 @@ func analyze(sql string) []*Warning {
 	analyzers := AllAnalyzers()
 	var changes []*Warning
 	for _, analyzer := range analyzers {
-		res := analyzer(result.Stmts[0].Stmt)
+		res := analyzer(config, result.Stmts[0].Stmt)
 		if res != nil {
 			changes = append(changes, res)
 
@@ -45,7 +50,18 @@ func analyze(sql string) []*Warning {
 	return changes
 }
 
-func dropTableAnalyzer(stmt *pg.Node) *Warning {
+func nameTableAnalyzer(config *Config, stmt *pg.Node) *Warning {
+	if stmt.GetCreateStmt() != nil {
+		name := stmt.GetCreateStmt().GetRelation().Relname
+		valid := ValidateName(name, config.Checkers...)
+		if !valid {
+			fmt.Printf("%s is not a valid name\n", name)
+		}
+	}
+	return nil
+}
+
+func dropTableAnalyzer(config *Config, stmt *pg.Node) *Warning {
 	if stmt.GetDropStmt() != nil {
 		name := stmt.GetDropStmt().GetObjects()[0].GetList().Items[0].GetString_().Sval
 		return &Warning{

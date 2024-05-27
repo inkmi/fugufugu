@@ -1,0 +1,18 @@
+checkers:
+  - type: regex
+    pattern: "a.*"
+  - type: kebab-case
+  - type: camel-case
+  - type: snake-case
+  - type: upper-snake-case
+  - type: pascal-case
+  - type: alphanumeric
+  - type: no-sql-reserved-words
+  - type: minimum-length
+    minLength: 3
+  - type: maximum-length
+    maxLength: 30
+  - type: allowed-special-characters
+    allowedChars: "_-"
+  - type: prefix
+    prefix: "ex"

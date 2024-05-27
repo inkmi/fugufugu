@@ -4,11 +4,33 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 )
+
+func checkFileExists(path string) error {
+	cleanPath := filepath.Clean(path)
+	components := filepath.SplitList(cleanPath)
+	for i := range components {
+		partialPath := filepath.Join(components[:i+1]...)
+		info, err := os.Stat(partialPath)
+		if os.IsNotExist(err) {
+			if i == len(components)-1 {
+				return fmt.Errorf("%s does not exist", filepath.Base(partialPath))
+			}
+			return fmt.Errorf("directory %s does not exist", filepath.Base(partialPath))
+		}
+		if err != nil {
+			return fmt.Errorf("error checking %s: %v", partialPath, err)
+		}
+		if i != len(components)-1 && !info.IsDir() {
+			return fmt.Errorf("%s is not a directory", filepath.Base(partialPath))
+		}
+	}
+
+	return nil
+}
 
 func main() {
 	dir := flag.String("dir", "", "directory containing .sql files")
@@ -19,7 +41,17 @@ func main() {
 		return
 	}
 
-	files, err := ioutil.ReadDir(*dir)
+	err := checkFileExists("config.yaml")
+	var config *Config
+	if err == nil {
+		config = LoadConfig()
+	} else {
+		config = &Config{
+			Checkers: []Checker{},
+		}
+	}
+
+	files, err := os.ReadDir(*dir)
 	if err != nil {
 		fmt.Println("Error reading directory:", err)
 		return
@@ -31,7 +63,7 @@ func main() {
 		if filepath.Ext(file.Name()) == ".sql" {
 			filePath := filepath.Join(*dir, file.Name())
 			fmt.Printf("  %s\n", file.Name())
-			fileChanges := processSQLFile(filePath)
+			fileChanges := processSQLFile(config, filePath)
 			if len(fileChanges) > 0 {
 				changes = append(changes, fileChanges...)
 			}
@@ -46,7 +78,7 @@ func main() {
 	}
 }
 
-func processSQLFile(filePath string) []*Warning {
+func processSQLFile(config *Config, filePath string) []*Warning {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil
@@ -78,6 +110,6 @@ func processSQLFile(filePath string) []*Warning {
 
 	upStr := strings.TrimSpace(upPart.String())
 
-	changes := analyze(upStr)
+	changes := analyze(config, upStr)
 	return changes
 }
