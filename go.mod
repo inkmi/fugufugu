@@ -1,4 +1,4 @@
-module fugufugu
+module github.com/inkmi/fugufugu
 
 go 1.22
 
