@@ -17,7 +17,8 @@ type Analyzer func(config *Config, stmt *pg.Node) *Warning
 
 func AllAnalyzers() []Analyzer {
 	return []Analyzer{
-		dropTableAnalyzer,
+		dropAnalyzer,
+		alterAnalyzer,
 		nameTableAnalyzer,
 	}
 
@@ -61,14 +62,48 @@ func nameTableAnalyzer(config *Config, stmt *pg.Node) *Warning {
 	return nil
 }
 
-func dropTableAnalyzer(config *Config, stmt *pg.Node) *Warning {
-	if stmt.GetDropStmt() != nil {
-		name := stmt.GetDropStmt().GetObjects()[0].GetList().Items[0].GetString_().Sval
-		return &Warning{
-			Change: "D",
-			Type:   "drop",
-			Object: "table",
-			Name:   name,
+func alterAnalyzer(config *Config, stmt *pg.Node) *Warning {
+	if alter := stmt.GetAlterTableStmt(); alter != nil {
+		relation := alter.Relation.Relname
+
+		for _, cmd := range alter.Cmds {
+			if at := cmd.GetAlterTableCmd(); at != nil {
+				switch at.Subtype {
+				case pg.AlterTableType_AT_DropColumn:
+					return &Warning{
+						Change: "D",
+						Type:   "drop",
+						Object: "column",
+						Name:   relation + "." + at.Name,
+					}
+				}
+			}
+		}
+		return nil
+	}
+	return nil
+}
+
+func dropAnalyzer(config *Config, stmt *pg.Node) *Warning {
+	if drop := stmt.GetDropStmt(); drop != nil {
+		name := drop.GetObjects()[0].GetList().Items[0].GetString_().Sval
+		switch drop.RemoveType {
+		case pg.ObjectType_OBJECT_TABLE:
+			return &Warning{
+				Change: "D",
+				Type:   "drop",
+				Object: "table",
+				Name:   name,
+			}
+		case pg.ObjectType_OBJECT_VIEW:
+			return &Warning{
+				Change: "IC",
+				Type:   "drop",
+				Object: "view",
+				Name:   name,
+			}
+		default:
+			return nil
 		}
 	}
 	return nil

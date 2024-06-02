@@ -1,5 +1,8 @@
 build:  go-imports
-	go build -o bin/fugu ./...
+	go build -o bin/fugu .
+
+build-playground:
+	go build -o bin/ ./cmd/...
 
 test:
 	 go test ./...
