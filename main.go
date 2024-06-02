@@ -32,21 +32,21 @@ func checkFileExists(path string) error {
 	return nil
 }
 
-const version = "0.0.7"
+const version = "0.0.8"
 
 func main() {
 	dir := flag.String("dir", "", "directory containing .sql files")
 	showVersion := flag.Bool("version", false, "print version information and exit")
 	flag.Parse()
 
-	if *dir == "" {
-		fmt.Println("Please specify a directory using --dir")
-		return
-	}
 	// Check if the version flag is provided
 	if *showVersion {
 		fmt.Println("Version:", version)
 		os.Exit(0)
+	}
+	if *dir == "" {
+		fmt.Println("Please specify a directory using --dir")
+		return
 	}
 
 	err := checkFileExists("config.yaml")
