@@ -8,6 +8,6 @@
 Created for safe migrations of [Inkmi - Dream Jobs for CTOs](https://www.inkmi.com)
 
 Detected destructive or incompatible changes:
-* DROP TABLE table
-* DROP VIEW view
-* ALTER TABLE table DROP COLUMN column
+* `DROP TABLE table`
+* `DROP VIEW view`
+* `ALTER TABLE table DROP COLUMN column`
